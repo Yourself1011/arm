@@ -1,20 +1,20 @@
 import cv2
 import mediapipe as mp
 import time
+from math import asin, degrees, sqrt
+from Arduino import write
+from threading import Thread
 
 
 class handDetector:
-    def __init__(self, mode=False, maxHands=2, detectionCon=0.5, trackCon=0.5):
-        self.mode = mode
-        self.maxHands = maxHands
-        self.detectionCon = detectionCon
-        self.trackCon = trackCon
-
+    def __init__(self):
         self.mpHands = mp.solutions.hands
-        self.hands = self.mpHands.Hands(
-            self.mode, self.maxHands, self.detectionCon, self.trackCon
-        )
+        self.hands = self.mpHands.Hands()
         self.mpDraw = mp.solutions.drawing_utils
+        self.points = {}
+        self.thumbLength = 0
+        self.indexLength = 0
+        self.middleLength = 0
 
     def findHands(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -29,17 +29,62 @@ class handDetector:
         return img
 
     def findPosition(self, img, handNo=0, draw=True):
-        lmList = []
+        lmList = {}
         if self.results.multi_hand_landmarks:
             myHand = self.results.multi_hand_landmarks[handNo]
             for id, lm in enumerate(myHand.landmark):
                 h, w, c = img.shape
                 cx, cy = int(lm.x * w), int(lm.y * h)
-                lmList.append([id, cx, cy])
+                lmList[id] = {"x": cx, "y": cy}
                 if draw:
                     cv2.circle(img, (cx, cy), 15, (255, 0, 255), cv2.FILLED)
 
+        self.points = lmList
         return lmList
+
+    def findAngles(self):
+        if not (
+            2 in self.points
+            and 4 in self.points
+            and 5 in self.points
+            and 8 in self.points
+            and 9 in self.points
+            and 12 in self.points
+        ):
+            return
+        self.thumbLength = max(
+            self.thumbLength,
+            sqrt(
+                (self.points[4]["x"] - self.points[2]["x"]) ** 2
+                + (self.points[4]["y"] - self.points[2]["y"]) ** 2
+            ),
+        )
+        self.indexLength = max(
+            self.indexLength,
+            sqrt(
+                (self.points[8]["x"] - self.points[5]["x"]) ** 2
+                + (self.points[8]["y"] - self.points[5]["y"]) ** 2
+            ),
+        )
+        self.middleLength = max(
+            self.middleLength,
+            sqrt(
+                (self.points[12]["x"] - self.points[9]["x"]) ** 2
+                + (self.points[12]["y"] - self.points[9]["y"]) ** 2
+            ),
+        )
+
+        thumbAngle = degrees(
+            asin((self.points[4]["y"] - self.points[2]["y"]) / self.thumbLength)
+        )
+        indexAngle = degrees(
+            asin((self.points[5]["y"] - self.points[8]["y"]) / self.indexLength)
+        )
+        middleAngle = degrees(
+            asin((self.points[9]["y"] - self.points[12]["y"]) / self.middleLength)
+        )
+
+        return (thumbAngle, indexAngle, middleAngle)
 
 
 def main():
@@ -51,8 +96,14 @@ def main():
         success, img = cap.read()
         img = detector.findHands(img)
         lmList = detector.findPosition(img)
-        if len(lmList) != 0:
-            print(lmList[4])
+        angles = detector.findAngles()
+        if angles:
+            # thread = Thread(
+            #     target=write,
+            #     args=(",".join([str(angle) for angle in angles]),),
+            # )
+            # thread.start()
+            write(",".join([str(round(angle, 1)) for angle in angles]))
 
         cTime = time.time()
         fps = 1 / (cTime - pTime)
