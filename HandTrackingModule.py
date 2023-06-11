@@ -15,6 +15,7 @@ class handDetector:
         self.thumbLength = 0
         self.indexLength = 0
         self.middleLength = 0
+        self.angleRange = 180
 
     def findHands(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -37,12 +38,15 @@ class handDetector:
                 cx, cy = int(lm.x * w), int(lm.y * h)
                 lmList[id] = {"x": cx, "y": cy}
                 if draw:
-                    cv2.circle(img, (cx, cy), 15, (255, 0, 255), cv2.FILLED)
+                    if id in [2, 4, 5, 8, 9, 12]:
+                        cv2.circle(img, (cx, cy), 10, (255, 0, 255), cv2.FILLED)
+                    else:
+                        cv2.circle(img, (cx, cy), 5, (128, 0, 128), cv2.FILLED)
 
         self.points = lmList
         return lmList
 
-    def findAngles(self):
+    def findAngles(self, img):
         if not (
             2 in self.points
             and 4 in self.points
@@ -84,7 +88,14 @@ class handDetector:
             asin((self.points[9]["y"] - self.points[12]["y"]) / self.middleLength)
         )
 
-        return (thumbAngle, indexAngle, middleAngle)
+        h, w, c = img.shape
+
+        return (
+            thumbAngle,
+            indexAngle,
+            middleAngle,
+            self.points[0]["x"] / w * self.angleRange,
+        )
 
 
 def main():
@@ -96,7 +107,7 @@ def main():
         success, img = cap.read()
         img = detector.findHands(img)
         lmList = detector.findPosition(img)
-        angles = detector.findAngles()
+        angles = detector.findAngles(img)
         if angles:
             # thread = Thread(
             #     target=write,
