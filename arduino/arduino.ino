@@ -29,6 +29,7 @@ void setup()
 {
     Serial.begin(115200);
     Serial.setTimeout(5);
+
     thumb.attach(4);
     index.attach(5);
     middle.attach(3);

@@ -3,7 +3,6 @@ import mediapipe as mp
 import time
 from math import asin, degrees, sqrt
 from Arduino import write
-from threading import Thread
 
 
 class handDetector:
@@ -38,7 +37,7 @@ class handDetector:
                 cx, cy = int(lm.x * w), int(lm.y * h)
                 lmList[id] = {"x": cx, "y": cy}
                 if draw:
-                    if id in [2, 4, 5, 8, 9, 12]:
+                    if id in [0, 2, 4, 5, 8, 9, 12]:
                         cv2.circle(img, (cx, cy), 10, (255, 0, 255), cv2.FILLED)
                     else:
                         cv2.circle(img, (cx, cy), 5, (128, 0, 128), cv2.FILLED)
